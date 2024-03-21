@@ -1,16 +1,32 @@
 name: Scheduled Health Check
 
-# Controls when the action will run.
+# Controls when the action will run. This is set to run on a schedule using cron syntax.
 on:
   schedule:
     - cron: "30 * * * *"
 
 jobs:
   health_check_job:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Specifies the type of virtual host machine to run the job on.
     name: Check all sites
     steps:
-      - uses: actions/checkout@v2
-      - name: Run Shell Script
-        id: shell_script_run
-        run: bash ./health-check.sh
+      - uses: actions/checkout@v2  # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it.
+      - name: Run Health Check Script
+        id: health_check_script_run
+        run: bash ./health-check.sh  # Executes the health-check.sh script to perform health checks.
+      - name: Trigger Instance Restart on Failure
+        if: steps.health_check_script_run.outcome == 'failure'  # Conditionally executes this step if any health checks failed.
+        run: |
+          echo "Restarting instances due to health check failure."
+          oci compute instance action --action STOP --instance-id ${{ secrets.NODE1_INSTANCE_ID }}
+          oci compute instance action --action STOP --instance-id ${{ secrets.NODE2_INSTANCE_ID }}
+          sleep 20  # Waits for 20 seconds before restarting.
+          oci compute instance action --action START --instance-id ${{ secrets.NODE1_INSTANCE_ID }}
+          oci compute instance action --action START --instance-id ${{ secrets.NODE2_INSTANCE_ID }}
+          echo "Instances have been restarted."
+        env:
+          OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}  # Sets environment variables for the OCI CLI command.
+          OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+          OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+          OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
