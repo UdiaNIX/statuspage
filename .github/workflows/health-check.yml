@@ -14,12 +14,6 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup OCI CLI and Key
-      env:
-        OCI_USER: ${{ secrets.OCI_USER_OCID }}
-        OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-        OCI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
-        OCI_REGION: ${{ secrets.OCI_REGION }}
-        OCI_KEY_CONTENT: ${{ secrets.OCI_KEY_FILE }}
       run: |
         echo "Installing OCI CLI..."
         curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh -o install-oci-cli.sh
@@ -29,16 +23,20 @@ jobs:
         echo "Creating OCI directory and files..."
         mkdir -p ~/.oci
 
-        # Criar arquivo de configuração com as variáveis expandidas
-        echo "[DEFAULT]" > ~/.oci/config
-        echo "user=$OCI_USER" >> ~/.oci/config
-        echo "fingerprint=$OCI_FINGERPRINT" >> ~/.oci/config
-        echo "tenancy=$OCI_TENANCY" >> ~/.oci/config
-        echo "region=$OCI_REGION" >> ~/.oci/config
-        echo "key_file=/home/runner/.oci/oci_api_key.pem" >> ~/.oci/config
+        # Criar arquivo de configuração diretamente com os valores das secrets
+        cat > ~/.oci/config << EOF
+        [DEFAULT]
+        user=${{ secrets.OCI_USER_OCID }}
+        fingerprint=${{ secrets.OCI_FINGERPRINT }}
+        tenancy=${{ secrets.OCI_TENANCY_OCID }}
+        region=${{ secrets.OCI_REGION }}
+        key_file=/home/runner/.oci/oci_api_key.pem
+        EOF
 
-        # Criar arquivo de chave privada
-        echo "$OCI_KEY_CONTENT" > /home/runner/.oci/oci_api_key.pem
+        # Criar arquivo de chave privada diretamente com o valor da secret
+        cat > /home/runner/.oci/oci_api_key.pem << EOF
+        ${{ secrets.OCI_KEY_FILE }}
+        EOF
         
         # Corrigir permissões
         chmod 600 /home/runner/.oci/oci_api_key.pem
@@ -47,11 +45,11 @@ jobs:
         # Adicionar label OCI_API_KEY para suprimir aviso
         echo "OCI_API_KEY" >> /home/runner/.oci/oci_api_key.pem
 
-        # Debug: Mostrar conteúdo do arquivo de configuração
-        echo "Config file content:"
-        cat ~/.oci/config
-        echo -e "\nKey file content (first few lines):"
-        head -5 /home/runner/.oci/oci_api_key.pem
+        # Debug: Mostrar conteúdo do arquivo de configuração (sem expor valores sensíveis)
+        echo "Config file content (redacted):"
+        sed 's/=.*$/=[REDACTED]/' ~/.oci/config
+        echo -e "\nKey file exists: $(test -f /home/runner/.oci/oci_api_key.pem && echo 'Yes' || echo 'No')"
+        echo "Key file size: $(wc -c < /home/runner/.oci/oci_api_key.pem) bytes"
 
     - name: Verify OCI Configuration
       run: |
