@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e # Garante que o script pare imediatamente se um comando falhar.
-echo  $NODE1_INSTANCE_ID
+echo  "node1-id: $NODE1_INSTANCE_ID"
 # Define a variable to control whether to commit changes or not.
 commit=true
 # Retrieve the URL of the origin remote repository.
