@@ -94,6 +94,7 @@ for (( index=0; index < ${#KEYSARRAY[@]}; index++ )); do
 done
 
 # Wait for all background jobs to complete.
+wait
 echo "Waiting for all checks to complete..."
 wait
 echo "All checks completed."
