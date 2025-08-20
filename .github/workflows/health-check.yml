@@ -29,27 +29,29 @@ jobs:
         echo "Creating OCI directory and files..."
         mkdir -p ~/.oci
 
-        # Create config file using environment variables
-        cat > ~/.oci/config << EOF
-          [DEFAULT]
-          user=$OCI_USER
-          fingerprint=$OCI_FINGERPRINT
-          tenancy=$OCI_TENANCY
-          region=$OCI_REGION
-          key_file=/home/runner/.oci/oci_api_key.pem
-          EOF
+        # Criar arquivo de configuração
+        cat > ~/.oci/config << 'CONFIG_EOF'
+        [DEFAULT]
+        user=$OCI_USER
+        fingerprint=$OCI_FINGERPRINT
+        tenancy=$OCI_TENANCY
+        region=$OCI_REGION
+        key_file=/home/runner/.oci/oci_api_key.pem
+        CONFIG_EOF
 
-        # Create private key file
-        echo "$OCI_KEY_CONTENT" > /home/runner/.oci/oci_api_key.pem
+        # Criar arquivo de chave privada
+        cat > /home/runner/.oci/oci_api_key.pem << 'KEY_EOF'
+        $OCI_KEY_CONTENT
+        KEY_EOF
         
-        # Fix permissions
+        # Corrigir permissões
         chmod 600 /home/runner/.oci/oci_api_key.pem
         chmod 600 ~/.oci/config
 
-        # Add OCI_API_KEY label to suppress warning
+        # Adicionar label OCI_API_KEY para suprimir aviso
         echo "OCI_API_KEY" >> /home/runner/.oci/oci_api_key.pem
 
-        # Debug: Show config file content
+        # Debug: Mostrar conteúdo do arquivo de configuração
         echo "Config file content:"
         cat ~/.oci/config
         echo -e "\nKey file content (first few lines):"
