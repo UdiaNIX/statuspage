@@ -22,7 +22,10 @@ jobs:
 
     - name: Setup OCI CLI
       run: |
-        bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" --accept-all-defaults
+        # Download the installer script first
+        curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh -o install-oci-cli.sh
+        # Then run it with the accept flag
+        bash install-oci-cli.sh --accept-all-defaults
         echo "$HOME/bin" >> $GITHUB_PATH
 
     - name: Configure OCI CLI
@@ -41,6 +44,9 @@ jobs:
         # Create private key file
         echo "$OCI_CLI_KEY_CONTENT" > ~/.oci/oci_api_key.pem
         chmod 600 ~/.oci/oci_api_key.pem
+
+    - name: Verify OCI Configuration
+      run: oci --version
 
     - name: Run Health Check Script
       run: |
