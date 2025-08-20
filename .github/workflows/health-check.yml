@@ -30,13 +30,14 @@ jobs:
           mkdir -p ~/.oci
 
           cat > ~/.oci/config <<EOF
-[DEFAULT]
-user=${{ secrets.OCI_USER_OCID }}
-fingerprint=${{ secrets.OCI_FINGERPRINT }}
-tenancy=${{ secrets.OCI_TENANCY_OCID }}
-region=${{ secrets.OCI_REGION }}
-key_file=/home/runner/.oci/oci_api_key.pem
-EOF
+          [DEFAULT]
+          user=${{ secrets.OCI_USER_OCID }}
+          fingerprint=${{ secrets.OCI_FINGERPRINT }}
+          tenancy=${{ secrets.OCI_TENANCY_OCID }}
+          region=${{ secrets.OCI_REGION }}
+          EOF
+          key_file=/home/runner/.oci/oci_api_key.pem
+          EOF
 
           echo "${{ secrets.OCI_KEY_FILE }}" > /home/runner/.oci/oci_api_key.pem
 
