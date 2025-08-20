@@ -19,48 +19,50 @@ jobs:
           bash install-oci-cli.sh --accept-all-defaults
           echo "$HOME/bin" >> $GITHUB_PATH
 
-          echo "Creating OCI config and key files..."
+          echo "Criando arquivos de configuração e chave da OCI..."
           mkdir -p ~/.oci
 
-          # Create the OCI config file using a "here document".
-          # The final EOF must not be indented.
-          cat > ~/.oci/config <<'EOF'
-          [DEFAULT]
-          user=${{ secrets.OCI_USER_OCID }}
-          fingerprint=${{ secrets.OCI_FINGERPRINT }}
-          tenancy=${{ secrets.OCI_TENANCY_OCID }}
-          region=${{ secrets.OCI_REGION }}
-          key_file=~/.oci/oci_api_key.pem
-          EOF
+          # Atenção: As variáveis de ambiente do GitHub Actions NÃO são expandidas dentro de um here-document com aspas simples.
+          # Portanto, vamos criar o arquivo de configuração usando echo para garantir a interpolação correta.
+          echo "[DEFAULT]" > ~/.oci/config
+          echo "user=${{ secrets.OCI_USER_OCID }}" >> ~/.oci/config
+          echo "fingerprint=${{ secrets.OCI_FINGERPRINT }}" >> ~/.oci/config
+          echo "tenancy=${{ secrets.OCI_TENANCY_OCID }}" >> ~/.oci/config
+          echo "region=${{ secrets.OCI_REGION }}" >> ~/.oci/config
+          echo "key_file=~/.oci/oci_api_key.pem" >> ~/.oci/config
 
+          # Cria o arquivo da chave privada
           echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/oci_api_key.pem
+
+          # Adiciona a linha recomendada para evitar o warning de segurança
+          echo "OCI_API_KEY" >> ~/.oci/oci_api_key.pem
 
           chmod 600 ~/.oci/oci_api_key.pem
           chmod 600 ~/.oci/config
 
-      - name: Verify OCI Configuration
+      - name: Verificar Configuração da OCI
+        shell: /usr/bin/bash -e {0}
         run: |
           oci --version
           oci iam region list
 
-      - name: Run Health Check Script
+      - name: Executar Script de Health Check
         run: |
           chmod +x health-check.sh
           ./health-check.sh
         env:
-          # Use GitHub repository variables for non-sensitive data like instance IDs.
           NODE1_INSTANCE_ID: ${{ vars.NODE1_INSTANCE_ID }}
           NODE2_INSTANCE_ID: ${{ vars.NODE2_INSTANCE_ID }}
 
-      - name: Upload Logs on Failure
+      - name: Fazer upload dos logs em caso de falha
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: healthcheck-logs
           path: logs/
 
-      - name: Debug - Verify OCI Files
-        if: always() # Run this step even if previous steps fail
+      - name: Debug - Verificar arquivos da OCI
+        if: always()
         run: |
           echo "Conteúdo do arquivo de configuração:"
           cat ~/.oci/config
