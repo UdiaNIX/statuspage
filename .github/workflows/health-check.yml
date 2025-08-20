@@ -2,8 +2,8 @@ name: Health Check and OCI Instance Restart
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Runs every 5 minutes
-  workflow_dispatch:        # Allows manual execution
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 jobs:
   health-check:
@@ -14,23 +14,22 @@ jobs:
       OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
       OCI_CLI_REGION: ${{ secrets.OCI_REGION }}
       OCI_CLI_KEY_FILE: /home/runner/.oci/oci_api_key.pem
-    
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup OCI CLI and Key
-      run: |
-        echo "Installing OCI CLI..."
-        curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh -o install-oci-cli.sh
-        bash install-oci-cli.sh --accept-all-defaults
-        echo "$HOME/bin" >> $GITHUB_PATH
+      - name: Setup OCI CLI and Key
+        run: |
+          echo "Instalando OCI CLI..."
+          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh -o install-oci-cli.sh
+          bash install-oci-cli.sh --accept-all-defaults
+          echo "$HOME/bin" >> $GITHUB_PATH
 
-        echo "Creating OCI directory and files..."
-        mkdir -p ~/.oci
+          echo "Criando diretório e arquivos OCI..."
+          mkdir -p ~/.oci
 
-        # Create config file with proper formatting
-        cat > ~/.oci/config << EOF
+          cat > ~/.oci/config <<EOF
 [DEFAULT]
 user=${{ secrets.OCI_USER_OCID }}
 fingerprint=${{ secrets.OCI_FINGERPRINT }}
@@ -39,40 +38,36 @@ region=${{ secrets.OCI_REGION }}
 key_file=/home/runner/.oci/oci_api_key.pem
 EOF
 
-        # Create private key file
-        echo "${{ secrets.OCI_KEY_FILE }}" > /home/runner/.oci/oci_api_key.pem
-        
-        # Fix permissions
-        chmod 600 /home/runner/.oci/oci_api_key.pem
-        chmod 600 ~/.oci/config
+          echo "${{ secrets.OCI_KEY_FILE }}" > /home/runner/.oci/oci_api_key.pem
 
-        # Add OCI_API_KEY label to suppress warning
-        echo "OCI_API_KEY" >> /home/runner/.oci/oci_api_key.pem
+          chmod 600 /home/runner/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/config
 
-    - name: Verify OCI Configuration
-      run: |
-        oci --version
-        oci iam region list
+      - name: Verificar configuração OCI
+        run: |
+          oci --version
+          oci iam region list
 
-    - name: Run Health Check Script
-      run: |
-        chmod +x health-check.sh
-        ./health-check.sh
-      env:
-        NODE1_INSTANCE_ID: ${{ secrets.NODE1_INSTANCE_ID }}
-        NODE2_INSTANCE_ID: ${{ secrets.NODE2_INSTANCE_ID }}
+      - name: Executar script de Health Check
+        run: |
+          chmod +x health-check.sh
+          ./health-check.sh
+        env:
+          NODE1_INSTANCE_ID: ${{ secrets.NODE1_INSTANCE_ID }}
+          NODE2_INSTANCE_ID: ${{ secrets.NODE2_INSTANCE_ID }}
 
-    - name: Upload Logs on Failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: healthcheck-logs
-        path: logs/
-    - name: Debug - Check OCI Files
-      run: |
-        echo "Config file content:"
-        cat ~/.oci/config
-        echo -e "\nKey file content (first few lines):"
-        head -5 /home/runner/.oci/oci_api_key.pem
-        echo -e "\nKey file permissions:"
-        ls -la /home/runner/.oci/
+      - name: Upload dos logs em caso de falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: healthcheck-logs
+          path: logs/
+
+      - name: Debug - Verificar arquivos OCI
+        run: |
+          echo "Conteúdo do arquivo de configuração:"
+          cat ~/.oci/config
+          echo -e "\nPrimeiras linhas do arquivo de chave:"
+          head -5 /home/runner/.oci/oci_api_key.pem
+          echo -e "\nPermissões dos arquivos:"
+          ls -la /home/runner/.oci/
