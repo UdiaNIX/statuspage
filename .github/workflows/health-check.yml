@@ -53,7 +53,7 @@ jobs:
         chmod +x health-check.sh
         ./health-check.sh
       env:
-        NODE1_INSTANCE_ID: ${{ secrets.NODE1_INSTANCE_ID }}
+        NODE1_INSTANCE_ID: ${{ var.NODE1_INSTANCE_ID }}
         NODE2_INSTANCE_ID: ${{ secrets.NODE2_INSTANCE_ID }}
 
     - name: Upload Logs on Failure
