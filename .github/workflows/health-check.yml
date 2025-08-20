@@ -1,34 +1,58 @@
-permissions:
-  contents: write # 1. Permissão CORRIGIDA para permitir 'git push'
-name: Health Check & Restart
+name: Health Check and OCI Instance Restart
 
-# Controls when the action will run. This is set to run on a schedule using cron syntax.
 on:
   schedule:
-    - cron: "*/5 * * * *" # Executa a cada 5 minutos
-  workflow_dispatch: # Permite acionamento manual
+    - cron: '*/5 * * * *'  # Runs every 5 minutes
+  workflow_dispatch:        # Allows manual execution
+
+env:
+  OCI_CLI_USER: ${{ secrets.OCI_USER_OCID }}
+  OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+  OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
+  OCI_CLI_REGION: ${{ secrets.OCI_REGION }}
+  OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_KEY_FILE }}
 
 jobs:
-  health_check_job:
-    runs-on: ubuntu-latest  # Specifies the type of virtual host machine to run the job on.
-    name: Check all sites
+  health-check:
+    runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout do repositório
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # 2. Necessário para 'git pull --rebase' funcionar corretamente
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Run Health Check Script
-        id: health_check_script_run
-        run: bash ./health-check.sh
-        env:
-          # 3. Lógica de reinício REMOVIDA daqui e movida para o script.
-          #    As credenciais agora são passadas para o script usar.
-          OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
-          OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
-          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
-          OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
-          OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
-          # O script espera a variável OCI_INSTANCE_ID.
-          # Estou usando NODE1_INSTANCE_ID, ajuste se precisar reiniciar outra instância.
-          NODE1_INSTANCE_ID: ${{ vars.NODE1_INSTANCE_ID }}
+    - name: Setup OCI CLI
+      run: |
+        bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" --accept-all-defaults
+        echo "$HOME/bin" >> $GITHUB_PATH
+
+    - name: Configure OCI CLI
+      run: |
+        mkdir -p ~/.oci
+        # Create config file
+        cat > ~/.oci/config << EOF
+        [DEFAULT]
+        user=$OCI_CLI_USER
+        fingerprint=$OCI_CLI_FINGERPRINT
+        tenancy=$OCI_CLI_TENANCY
+        region=$OCI_CLI_REGION
+        key_file=~/.oci/oci_api_key.pem
+        EOF
+        
+        # Create private key file
+        echo "$OCI_CLI_KEY_CONTENT" > ~/.oci/oci_api_key.pem
+        chmod 600 ~/.oci/oci_api_key.pem
+
+    - name: Run Health Check Script
+      run: |
+        chmod +x health-check.sh
+        ./health-check.sh
+      env:
+        NODE1_INSTANCE_ID: ${{ secrets.NODE1_INSTANCE_ID }}
+        NODE2_INSTANCE_ID: ${{ secrets.NODE2_INSTANCE_ID }}
+
+    - name: Upload Logs on Failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: healthcheck-logs
+        path: logs/
