@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e # Garante que o script pare imediatamente se um comando falhar.
-echo  "node1-id: $NODE1_INSTANCE_ID"
+
 # Define a variable to control whether to commit changes or not.
 commit=true
 # Retrieve the URL of the origin remote repository.
@@ -80,6 +80,10 @@ trap 'rm -rf -- "$status_dir"' EXIT
 
 echo "***********************"
 echo "Starting health checks in parallel for ${#KEYSARRAY[@]} configs:"
+echo  "node1-id: $NODE1_INSTANCE_ID"
+echo  "node2-id: $NODE2_INSTANCE_ID"
+echo "***********************"
+
 
 # Create a directory for logs if it doesn't already exist.
 mkdir -p logs
