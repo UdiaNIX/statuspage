@@ -8,13 +8,6 @@ on:
 jobs:
   health-check:
     runs-on: ubuntu-latest
-    env:
-      OCI_CLI_USER: ${{ secrets.OCI_USER_OCID }}
-      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-      OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
-      OCI_CLI_REGION: ${{ secrets.OCI_REGION }}
-      OCI_CLI_KEY_FILE: /home/runner/.oci/oci_api_key.pem
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,45 +19,48 @@ jobs:
           bash install-oci-cli.sh --accept-all-defaults
           echo "$HOME/bin" >> $GITHUB_PATH
 
-          echo "Criando diretório e arquivos OCI..."
+          echo "Creating OCI config and key files..."
           mkdir -p ~/.oci
 
-          cat > ~/.oci/config <<EOF
+          # Create the OCI config file using a "here document".
+          # The final EOF must not be indented.
+          cat > ~/.oci/config <<'EOF'
           [DEFAULT]
           user=${{ secrets.OCI_USER_OCID }}
           fingerprint=${{ secrets.OCI_FINGERPRINT }}
           tenancy=${{ secrets.OCI_TENANCY_OCID }}
           region=${{ secrets.OCI_REGION }}
-          EOF
-          key_file=/home/runner/.oci/oci_api_key.pem
+          key_file=~/.oci/oci_api_key.pem
           EOF
 
-          echo "${{ secrets.OCI_KEY_FILE }}" > /home/runner/.oci/oci_api_key.pem
+          echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/oci_api_key.pem
 
-          chmod 600 /home/runner/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
           chmod 600 ~/.oci/config
 
-      - name: Verificar configuração OCI
+      - name: Verify OCI Configuration
         run: |
           oci --version
           oci iam region list
 
-      - name: Executar script de Health Check
+      - name: Run Health Check Script
         run: |
           chmod +x health-check.sh
           ./health-check.sh
         env:
-          NODE1_INSTANCE_ID: ${{ secrets.NODE1_INSTANCE_ID }}
-          NODE2_INSTANCE_ID: ${{ secrets.NODE2_INSTANCE_ID }}
+          # Use GitHub repository variables for non-sensitive data like instance IDs.
+          NODE1_INSTANCE_ID: ${{ vars.NODE1_INSTANCE_ID }}
+          NODE2_INSTANCE_ID: ${{ vars.NODE2_INSTANCE_ID }}
 
-      - name: Upload dos logs em caso de falha
+      - name: Upload Logs on Failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: healthcheck-logs
           path: logs/
 
-      - name: Debug - Verificar arquivos OCI
+      - name: Debug - Verify OCI Files
+        if: always() # Run this step even if previous steps fail
         run: |
           echo "Conteúdo do arquivo de configuração:"
           cat ~/.oci/config
