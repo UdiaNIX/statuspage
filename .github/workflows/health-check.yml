@@ -31,4 +31,4 @@ jobs:
           OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
           # O script espera a variável OCI_INSTANCE_ID.
           # Estou usando NODE1_INSTANCE_ID, ajuste se precisar reiniciar outra instância.
-          NODE1_INSTANCE_ID: ${{ secrets.NODE1_INSTANCE_ID }}
+          NODE1_INSTANCE_ID: ${{ vars.NODE1_INSTANCE_ID }}
