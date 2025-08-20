@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e # 1. Garante que o script pare imediatamente se um comando falhar.
+
 # Define a variable to control whether to commit changes or not.
 commit=true
 # Retrieve the URL of the origin remote repository.
@@ -82,7 +85,25 @@ then
   echo "failed" > check_status.tmp
   # Trigger an event to restart instances if any check fails.
   echo "Some checks failed. Triggering instance restart."
-  # The actual restart logic is handled in the .github/workflows/health-check.yml file.
+  # Check if OCI_INSTANCE_ID is set and trigger a restart.
+  # The OCI_INSTANCE_ID must be set as an environment variable (e.g., a GitHub Secret).
+  if [ -n "$OCI_INSTANCE_ID" ]; then
+    echo "Attempting to SOFTRESET OCI instance: $OCI_INSTANCE_ID"
+    # 2. A flag '--auth' foi removida. A OCI CLI usará automaticamente as
+    #    credenciais das variáveis de ambiente (passadas pelo workflow).
+    oci compute instance action --action SOFTRESET --instance-id "$OCI_INSTANCE_ID"
+    if [ $? -eq 0 ]; then
+      echo "Instance restart command issued successfully."
+    else
+      # Output to stderr to make it more visible in logs
+      echo "ERROR: Failed to issue instance restart command." >&2
+      exit 1 # 3. Falha o build se o comando OCI falhar.
+    fi
+  else
+    echo "WARNING: OCI_INSTANCE_ID environment variable not set. Skipping instance restart."
+  fi
+  # 4. Garante que o job do GitHub Actions seja marcado como "Failed" se houver falhas.
+  exit 1
 else
   echo "success" > check_status.tmp
 fi
@@ -93,9 +114,21 @@ then
   # Configure Git with a generic user name and email.
   git config --global user.name 'Unix-User'
   git config --global user.email 'wevertonslima@gmail.com'
-  # Add all changes in the logs directory to the staging area and commit them.
+
+  # Pull latest changes from the remote to avoid push rejections.
+  # Using --rebase to maintain a clean, linear history.
+  # Assumes the primary branch is 'main'.
+  echo "Pulling latest changes from origin main..."
+  git pull --rebase origin main
+
+  # Add all changes in the logs directory to the staging area.
   git add -A --force logs/
-  git commit -am '[Automated] Update Health Check Logs'
-  # Push the commit to the remote repository.
-  git push
+  # Commit and push only if there are changes to be committed.
+  if ! git diff --staged --quiet; then
+    echo "Committing and pushing log updates..."
+    git commit -m '[Automated] Update Health Check Logs'
+    git push
+  else
+    echo "No log changes to commit."
+  fi
 fi
