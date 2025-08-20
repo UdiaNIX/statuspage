@@ -45,7 +45,7 @@ jobs:
     - name: Debug Configuration
       run: |
         echo "Config file structure:"
-        cat ~/.oci/config | grep -E "(user|fingerprint|tenancy|region|key_file)" | sed 's/=.*$/=[REDACTED]/'
+        cat ~/.oci/config
         
         echo -e "\nKey file info:"
         echo "Size: $(wc -c < ~/.oci/oci_api_key.pem) bytes"
