@@ -111,19 +111,30 @@ if [[ $failed_checks -gt 0 ]]; then
   # Check if NODE1_INSTANCE_ID is set and trigger a restart.
   # The NODE1_INSTANCE_ID must be set as an environment variable (e.g., a GitHub Secret).
   if [ -n "$NODE1_INSTANCE_ID" ]; then
-    echo "Attempting to SOFTRESET OCI instance: $NODE1_INSTANCE_ID"
+    echo "Attempting to SOFTRESET OCI instance NODE1: $NODE1_INSTANCE_ID"
     # A OCI CLI usará automaticamente as
     #    credenciais das variáveis de ambiente (passadas pelo workflow).
     oci compute instance action --action SOFTRESET --instance-id "$NODE1_INSTANCE_ID"
     if [ $? -eq 0 ]; then
-      echo "Instance restart command issued successfully."
+      echo "Instance NODE1 restart command issued successfully."
     else
       # Output to stderr to make it more visible in logs
-      echo "ERROR: Failed to issue instance restart command." >&2
+      echo "ERROR: Failed to issue instance NODE1 restart command." >&2
       exit 1 # Falha o build se o comando OCI falhar.
     fi
   else
     echo "WARNING: NODE1_INSTANCE_ID environment variable not set. Skipping instance restart."
+  fi
+
+  if [ -n "$NODE2_INSTANCE_ID" ]; then
+    echo "Attempting to SOFTRESET OCI instance NODE2: $NODE2_INSTANCE_ID"
+    oci compute instance action --action SOFTRESET --instance-id "$NODE2_INSTANCE_ID"
+    if [ $? -eq 0 ]; then
+      echo "Instance NODE2 restart command issued successfully."
+    else
+      echo "ERROR: Failed to issue instance NODE2 restart command." >&2
+      exit 1
+    fi
   fi
   # Garante que o job do GitHub Actions seja marcado como "Failed" se houver falhas.
   exit 1
