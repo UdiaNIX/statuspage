@@ -2,7 +2,7 @@ name: Health Check and OCI Instance Restart
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '30 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -65,6 +65,6 @@ jobs:
           echo "Conteúdo do arquivo de configuração:"
           cat ~/.oci/config
           echo -e "\nPrimeiras linhas do arquivo de chave:"
-          head -5 /home/runner/.oci/oci_api_key.pem
+          head -5 ~/.oci/oci_api_key.pem
           echo -e "\nPermissões dos arquivos:"
-          ls -la /home/runner/.oci/
+          ls -la ~/.oci/
