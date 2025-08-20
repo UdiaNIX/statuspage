@@ -1,3 +1,5 @@
+permissions:
+  contents: read
 name: Scheduled Health Check
 
 # Controls when the action will run. This is set to run on a schedule using cron syntax.
