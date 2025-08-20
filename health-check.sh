@@ -44,22 +44,22 @@ do
   key="${KEYSARRAY[index]}"
   url="${URLSARRAY[index]}"
   echo "  $key=$url"
+  
+  # 1. A variável 'result' é inicializada como 'failed' antes do loop.
+  result="failed"
 
   # Attempt the health check 4 times for each URL.
   for i in 1 2 3 4; 
   do
-    # Send a request to the URL and capture the HTTP response code.
-    response=$(curl --write-out '%{http_code}' --silent --output /dev/null $url)
+    # 2. Adicionados timeouts e o '|| true' para evitar que 'set -e' pare o script.
+    #    --connect-timeout: tempo para estabelecer a conexão.
+    #    --max-time: tempo total da operação.
+    response=$(curl --write-out '%{http_code}' --silent --output /dev/null --connect-timeout 10 --max-time 20 "$url" || true)
+
     # Check if the response code indicates success.
     if [ "$response" -eq 200 ] || [ "$response" -eq 202 ] || [ "$response" -eq 301 ] || [ "$response" -eq 302 ] || [ "$response" -eq 307 ]; then
       result="success"
-    else
-      result="failed"
-      # Increment the failed checks counter if the check fails.
-      failed_checks=$((failed_checks + 1))
-    fi
-    # If the check is successful, exit the retry loop.
-    if [ "$result" = "success" ]; then
+      # Se a verificação for bem-sucedida, saia do loop de retentativa.
       break
     fi
     # Wait for 5 seconds before retrying.
@@ -67,6 +67,12 @@ do
   done
   # Record the date and time of the check.
   dateTime=$(date +'%Y-%m-%d %H:%M')
+
+  # 3. O contador de falhas é incrementado AQUI, somente se o resultado final for 'failed'.
+  if [ "$result" = "failed" ]; then
+    failed_checks=$((failed_checks + 1))
+  fi
+
   # If committing is enabled, append the result to a log file and keep the last 2000 entries.
   if [[ $commit == true ]]
   then
