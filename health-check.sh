@@ -91,13 +91,13 @@ then
   echo "failed" > check_status.tmp
   # Trigger an event to restart instances if any check fails.
   echo "Some checks failed. Triggering instance restart."
-  # Check if OCI_INSTANCE_ID is set and trigger a restart.
-  # The OCI_INSTANCE_ID must be set as an environment variable (e.g., a GitHub Secret).
-  if [ -n "$OCI_INSTANCE_ID" ]; then
-    echo "Attempting to SOFTRESET OCI instance: $OCI_INSTANCE_ID"
+  # Check if NODE1_INSTANCE_ID is set and trigger a restart.
+  # The NODE1_INSTANCE_ID must be set as an environment variable (e.g., a GitHub Secret).
+  if [ -n "$NODE1_INSTANCE_ID" ]; then
+    echo "Attempting to SOFTRESET OCI instance: $NODE1_INSTANCE_ID"
     # 2. A flag '--auth' foi removida. A OCI CLI usará automaticamente as
     #    credenciais das variáveis de ambiente (passadas pelo workflow).
-    oci compute instance action --action SOFTRESET --instance-id "$OCI_INSTANCE_ID"
+    oci compute instance action --action SOFTRESET --instance-id "$NODE1_INSTANCE_ID"
     if [ $? -eq 0 ]; then
       echo "Instance restart command issued successfully."
     else
@@ -106,7 +106,7 @@ then
       exit 1 # 3. Falha o build se o comando OCI falhar.
     fi
   else
-    echo "WARNING: OCI_INSTANCE_ID environment variable not set. Skipping instance restart."
+    echo "WARNING: NODE1_INSTANCE_ID environment variable not set. Skipping instance restart."
   fi
   # 4. Garante que o job do GitHub Actions seja marcado como "Failed" se houver falhas.
   exit 1
