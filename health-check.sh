@@ -155,11 +155,10 @@ if [[ $commit == true ]]; then
   git config --global user.name 'Unix-User'
   git config --global user.email 'wevertonslima@gmail.com'
 
-  # Faz pull das últimas mudanças do remoto para evitar rejeições no push.
-  # Usa --rebase para manter histórico linear.
-  # Assume que o branch principal é 'main'.
+  # Puxa as últimas mudanças do remoto para evitar rejeições no push.
+  # --rebase mantém um histórico linear e --autostash lida com as mudanças locais (logs).
   echo "Puxando últimas mudanças do origin main..."
-  git pull --rebase origin main
+  git pull --rebase --autostash origin main
 
   # Adiciona todas as mudanças no diretório de logs para o staging.
   git add -A --force logs/
