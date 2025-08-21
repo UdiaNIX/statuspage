@@ -1,3 +1,5 @@
+permissions:
+  contents: read
 name: Health Check and OCI Instance Restart
 
 on:
