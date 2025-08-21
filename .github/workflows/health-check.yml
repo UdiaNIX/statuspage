@@ -30,6 +30,23 @@ jobs:
         pip install oci-cli
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+    - name: Verify OCI Authentication
+      run: |
+        echo "Creating OCI key file for verification..."
+        mkdir -p ~/.oci
+        echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/oci_api_key.pem
+        chmod 600 ~/.oci/oci_api_key.pem
+
+        echo "Verifying OCI authentication by fetching user details..."
+        # Este comando simples testa se as credenciais são válidas.
+        oci iam user get --user-id ${{ secrets.OCI_CLI_USER }}
+      env:
+        OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+        OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+        OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+        OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+        OCI_CLI_KEY_FILE: /home/runner/.oci/oci_api_key.pem
+
     - name: Run Health Check Script (com variáveis de ambiente OCI)
       run: |
         chmod +x health-check.sh
