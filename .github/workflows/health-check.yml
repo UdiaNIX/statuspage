@@ -4,7 +4,7 @@ name: Health Check and OCI Instance Restart
 
 on:
   schedule:
-    - cron: '30 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 jobs:
