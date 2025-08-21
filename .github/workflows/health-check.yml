@@ -16,53 +16,40 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Validate Secrets
+    - name: Setup and Authenticate OCI
       run: |
-        if [ -z "${{ secrets.OCI_KEY_FILE }}" ]; then
-          echo "ERRO: O secret OCI_KEY_FILE não está configurado no repositório."
-          echo "Por favor, adicione o conteúdo da sua chave privada OCI a este secret."
-          exit 1
-        fi
-
-    - name: Setup OCI CLI
-      run: |
-        # Instalar OCI CLI usando pip (mais confiável)
+        echo "Installing OCI CLI..."
         pip install oci-cli
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-    - name: Verify OCI Authentication
-      run: |
-        echo "Creating OCI key file for verification..."
+        echo "Creating OCI config and key files..."
         mkdir -p ~/.oci
+
+        # Create the OCI config file from secrets
+        cat > ~/.oci/config << EOF
+        [DEFAULT]
+        user=${{ secrets.OCI_CLI_USER }}
+        fingerprint=${{ secrets.OCI_FINGERPRINT }}
+        tenancy=${{ secrets.OCI_CLI_TENANCY }}
+        region=${{ secrets.OCI_CLI_REGION }}
+        key_file=~/.oci/oci_api_key.pem
+        EOF
+
+        # Create the private key file from a secret
         echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/oci_api_key.pem
         chmod 600 ~/.oci/oci_api_key.pem
 
-        echo "Verifying OCI authentication by fetching user details..."
-        # Este comando simples testa se as credenciais são válidas.
-        oci iam user get --user-id ${{ secrets.OCI_CLI_USER }}
-      env:
-        OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
-        OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-        OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
-        OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
-        OCI_CLI_KEY_FILE: /home/runner/.oci/oci_api_key.pem
+        echo "Verifying OCI authentication..."
+        # This command will fail if any of the credentials are wrong.
+        oci iam user get --user-id ${{ secrets.OCI_CLI_USER }} --output table
 
-    - name: Run Health Check Script (com variáveis de ambiente OCI)
+    - name: Run Health Check Script
       run: |
         chmod +x health-check.sh
         ./health-check.sh
       env:
-        # Corrigido para usar 'secrets' conforme sua configuração atual.
-        # RECOMENDAÇÃO: Mova estes para 'Variables' no seu ambiente para melhor prática.
         NODE1_INSTANCE_ID: ${{ secrets.NODE1_INSTANCE_ID }}
         NODE2_INSTANCE_ID: ${{ secrets.NODE2_INSTANCE_ID }}
-        # Variáveis de ambiente para autenticação OCI
-        # Corrigido para corresponder aos nomes dos seus secrets.
-        OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
-        OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-        OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
-        OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
-        OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_KEY_FILE }}
 
     - name: Upload Logs on Failure
       if: failure()
