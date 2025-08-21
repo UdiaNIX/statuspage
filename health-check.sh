@@ -1,29 +1,6 @@
 #!/bin/bash
 set -e # Garante que o script pare imediatamente se um comando falhar.
 
-# Função para configurar a autenticação OCI a partir de variáveis de ambiente.
-# Isso é necessário porque a chave privada precisa ser escrita em um arquivo.
-setup_oci_auth() {
-  # Verifica se o conteúdo da chave OCI foi passado.
-  if [ -z "$OCI_CLI_KEY_CONTENT" ]; then
-    # Se não houver chave, não podemos prosseguir com comandos OCI.
-    # Não saímos do script, pois os checks de URL ainda podem ser úteis.
-    echo "AVISO: OCI_CLI_KEY_CONTENT não está definida. Comandos OCI serão pulados."
-    return
-  fi
-
-  # Cria o diretório de configuração da OCI se não existir.
-  mkdir -p ~/.oci
-  # Define o caminho para o arquivo da chave privada.
-  local oci_key_file=~/.oci/oci_api_key.pem
-  # Escreve o conteúdo da chave (passado via env var) no arquivo.
-  echo "$OCI_CLI_KEY_CONTENT" > "$oci_key_file"
-  # Define permissões restritas para o arquivo da chave.
-  chmod 600 "$oci_key_file"
-  # Exporta a variável de ambiente que o OCI CLI usa para encontrar o arquivo da chave.
-  export OCI_CLI_KEY_FILE="$oci_key_file"
-}
-
 # Carrega variáveis de ambiente do arquivo .env, se existir
 if [ -f .env ]; then
   echo "Carregando variáveis de ambiente do arquivo .env"
@@ -31,9 +8,6 @@ if [ -f .env ]; then
   source .env
   set +o allexport
 fi
-
-# Chama a função de setup da OCI no início do script.
-setup_oci_auth
 
 # Define uma variável para controlar se deve commitar mudanças ou não.
 commit=true
@@ -161,8 +135,8 @@ if [[ $failed_checks -gt 0 ]]; then
   # Verifica se o comando 'oci' está disponível e se a autenticação foi configurada.
   if ! command -v oci &> /dev/null; then
     echo "ERRO: Comando 'oci' não encontrado no PATH. Pulando restart." >&2
-  elif [ -z "$OCI_CLI_KEY_FILE" ]; then
-    echo "AVISO: Autenticação OCI não foi configurada (OCI_CLI_KEY_FILE não está setado). Pulando restart."
+  elif [ ! -f ~/.oci/config ]; then
+    echo "AVISO: Arquivo de configuração OCI (~/.oci/config) não encontrado. Pulando restart."
   else
     restart_failed=0
     restart_oci_instance "$NODE1_INSTANCE_ID" "NODE1" || restart_failed=1

@@ -38,6 +38,7 @@ jobs:
         # Create the private key file from a secret
         echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/oci_api_key.pem
         chmod 600 ~/.oci/oci_api_key.pem
+        chmod 600 ~/.oci/config
 
         echo "Verifying OCI authentication..."
         # This command will fail if any of the credentials are wrong.
