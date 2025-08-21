@@ -118,9 +118,9 @@ restart_oci_instance() {
   if [ -n "$instance_id" ]; then
     echo "Tentando SOFTRESET na instância OCI ${instance_name}: ${instance_id}"
     if oci compute instance action --action SOFTRESET --instance-id "$instance_id"; then
-      echo "Comando de restart da instância ${instance_name} emitido com sucesso."
+      echo "AVISO: Comando de restart para a instância ${instance_name} foi emitido com sucesso."
     else
-      echo "ERRO: Falha ao emitir comando de restart para ${instance_name}." >&2
+      echo "AVISO: Falha ao emitir comando de restart para ${instance_name}. O job continuará, mas a instância pode não ter sido reiniciada." >&2
       return 1 # Retorna um código de erro
     fi
   fi
@@ -141,11 +141,6 @@ if [[ $failed_checks -gt 0 ]]; then
     restart_failed=0
     restart_oci_instance "$NODE1_INSTANCE_ID" "NODE1" || restart_failed=1
     restart_oci_instance "$NODE2_INSTANCE_ID" "NODE2" || restart_failed=1
-
-    # Se qualquer um dos restarts falhou, garante que o script saia com erro.
-    if [ "$restart_failed" -ne 0 ]; then
-      exit 1
-    fi
   fi
 
   # Garante que o job do GitHub Actions seja marcado como "Failed" se houver falhas.
