@@ -13,6 +13,14 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Validate Secrets
+      run: |
+        if [ -z "${{ secrets.OCI_KEY_FILE }}" ]; then
+          echo "ERRO: O secret OCI_KEY_FILE não está configurado no repositório."
+          echo "Por favor, adicione o conteúdo da sua chave privada OCI a este secret."
+          exit 1
+        fi
+
     - name: Setup OCI CLI
       run: |
         # Instalar OCI CLI usando pip (mais confiável)

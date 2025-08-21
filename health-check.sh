@@ -136,6 +136,22 @@ echo "Todos os checks finalizados."
 # 'grep -l' lista arquivos contendo "failed", 'wc -l' os conta.
 failed_checks=$(grep -l "failed" "$status_dir"/*.status 2>/dev/null | wc -l)
 
+# Função para reiniciar uma única instância OCI.
+restart_oci_instance() {
+  local instance_id=$1
+  local instance_name=$2
+
+  if [ -n "$instance_id" ]; then
+    echo "Tentando SOFTRESET na instância OCI ${instance_name}: ${instance_id}"
+    if oci compute instance action --action SOFTRESET --instance-id "$instance_id"; then
+      echo "Comando de restart da instância ${instance_name} emitido com sucesso."
+    else
+      echo "ERRO: Falha ao emitir comando de restart para ${instance_name}." >&2
+      return 1 # Retorna um código de erro
+    fi
+  fi
+}
+
 # Cria ou sobrescreve um arquivo temporário para indicar o status geral do health check.
 if [[ $failed_checks -gt 0 ]]; then
   echo "failed" > check_status.tmp
@@ -148,26 +164,13 @@ if [[ $failed_checks -gt 0 ]]; then
   elif [ -z "$OCI_CLI_KEY_FILE" ]; then
     echo "AVISO: Autenticação OCI não foi configurada (OCI_CLI_KEY_FILE não está setado). Pulando restart."
   else
-    # Lógica de restart para NODE1
-    if [ -n "$NODE1_INSTANCE_ID" ]; then
-      echo "Tentando SOFTRESET na instância OCI NODE1: $NODE1_INSTANCE_ID"
-      if oci compute instance action --action SOFTRESET --instance-id "$NODE1_INSTANCE_ID"; then
-        echo "Comando de restart da instância NODE1 emitido com sucesso."
-      else
-        echo "ERRO: Falha ao emitir comando de restart para NODE1." >&2
-      fi
-    else
-      echo "AVISO: Variável de ambiente NODE1_INSTANCE_ID não definida. Pulando restart da instância."
-    fi
+    restart_failed=0
+    restart_oci_instance "$NODE1_INSTANCE_ID" "NODE1" || restart_failed=1
+    restart_oci_instance "$NODE2_INSTANCE_ID" "NODE2" || restart_failed=1
 
-    # Lógica de restart para NODE2
-    if [ -n "$NODE2_INSTANCE_ID" ]; then
-      echo "Tentando SOFTRESET na instância OCI NODE2: $NODE2_INSTANCE_ID"
-      if oci compute instance action --action SOFTRESET --instance-id "$NODE2_INSTANCE_ID"; then
-        echo "Comando de restart da instância NODE2 emitido com sucesso."
-      else
-        echo "ERRO: Falha ao emitir comando de restart para NODE2." >&2
-      fi
+    # Se qualquer um dos restarts falhou, garante que o script saia com erro.
+    if [ "$restart_failed" -ne 0 ]; then
+      exit 1
     fi
   fi
 
