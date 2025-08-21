@@ -1,3 +1,19 @@
+<div align="center">
+  <img src="logo.png" alt="Logo do Projeto" height="240" />
+</div>
+
+<!-- Badges dinâmicas -->
+<p align="center">
+  <a href="https://github.com/UdiaNIX/statuspage/actions/workflows/health-check.yml">
+    <img src="https://github.com/UdiaNIX/statuspage/actions/workflows/health-check.yml/badge.svg" alt="Status do Build">
+  </a>
+  <img src="https://img.shields.io/github/last-commit/UdiaNIX/statuspage" alt="Último Commit">
+  <img src="https://img.shields.io/github/issues/UdiaNIX/statuspage" alt="Issues Abertas">
+  <img src="https://img.shields.io/github/forks/UdiaNIX/statuspage" alt="Forks">
+  <img src="https://img.shields.io/github/stars/UdiaNIX/statuspage" alt="Stars">
+  <img src="https://img.shields.io/github/license/UdiaNIX/statuspage" alt="Licença">
+</p>
+
 # Status Page Automatizado com Reinício de Instâncias OCI
 
 Este projeto é uma versão modificada e estendida do [statuspage da Statsig](https://github.com/statsig-io/statuspage). Enquanto a base de monitoramento de URLs via GitHub Actions foi mantida, esta versão introduz funcionalidades significativas, principalmente a capacidade de interagir com a Oracle Cloud Infrastructure (OCI).
