@@ -44,7 +44,7 @@ jobs:
 
         echo "Verifying OCI authentication..."
         # This command will fail if any of the credentials are wrong.
-        oci iam user get --user-id ${{ secrets.OCI_CLI_USER }} --output table
+        oci iam user get --user-id ${{ secrets.OCI_CLI_USER }} --output table > /dev/null 2>&1
 
     - name: Run Health Check Script
       run: |

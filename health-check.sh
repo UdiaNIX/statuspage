@@ -117,7 +117,7 @@ restart_oci_instance() {
 
   if [ -n "$instance_id" ]; then
     echo "Tentando SOFTRESET na instância OCI ${instance_name}: ${instance_id}"
-    if oci compute instance action --action SOFTRESET --instance-id "$instance_id"; then
+    if oci compute instance action --action SOFTRESET --instance-id "$instance_id" > /dev/null 2>&1; then
       echo "AVISO: Comando de restart para a instância ${instance_name} foi emitido com sucesso."
     else
       echo "AVISO: Falha ao emitir comando de restart para ${instance_name}. O job continuará, mas a instância pode não ter sido reiniciada." >&2
