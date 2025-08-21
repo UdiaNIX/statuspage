@@ -19,51 +19,19 @@ jobs:
         pip install oci-cli
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-    - name: Create OCI Configuration
-      run: |
-        mkdir -p ~/.oci
-        
-        # Criar arquivo de configuração
-        cat > ~/.oci/config << EOF
-        [DEFAULT]
-        user=${{ secrets.OCI_USER_OCID }}
-        fingerprint=${{ secrets.OCI_FINGERPRINT }}
-        tenancy=${{ secrets.OCI_TENANCY_OCID }}
-        region=${{ secrets.OCI_REGION }}
-        key_file=~/.oci/oci_api_key.pem
-        EOF
-
-        # Criar arquivo de chave privada
-        cat > ~/.oci/oci_api_key.pem << "EOF"
-        ${{ secrets.OCI_KEY_FILE }}
-        EOF
-        
-        # Corrigir permissões
-        chmod 600 ~/.oci/oci_api_key.pem
-        chmod 600 ~/.oci/config
-
-    - name: Debug Configuration
-      run: |
-        echo "Config file structure:"
-        cat ~/.oci/config
-        
-        echo -e "\nKey file info:"
-        echo "Size: $(wc -c < ~/.oci/oci_api_key.pem) bytes"
-        echo "First line: $(head -1 ~/.oci/oci_api_key.pem)"
-        echo "Last line: $(tail -1 ~/.oci/oci_api_key.pem)"
-
-    - name: Test OCI Configuration
-      run: |
-        # Testar se a configuração é válida
-        oci iam region list --config-file ~/.oci/config --auth api_key
-
-    - name: Run Health Check Script
+    - name: Run Health Check Script (com variáveis de ambiente OCI)
       run: |
         chmod +x health-check.sh
         ./health-check.sh
       env:
         NODE1_INSTANCE_ID: ${{ secrets.NODE1_INSTANCE_ID }}
         NODE2_INSTANCE_ID: ${{ secrets.NODE2_INSTANCE_ID }}
+        # Variáveis de ambiente para autenticação OCI
+        OCI_CLI_USER: ${{ secrets.OCI_USER_OCID }}
+        OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+        OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
+        OCI_CLI_REGION: ${{ secrets.OCI_REGION }}
+        OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_KEY_FILE }}
 
     - name: Upload Logs on Failure
       if: failure()

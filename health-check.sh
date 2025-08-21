@@ -1,16 +1,24 @@
 #!/bin/bash
 set -e # Garante que o script pare imediatamente se um comando falhar.
 
-# Define a variable to control whether to commit changes or not.
+# Carrega variáveis de ambiente do arquivo .env, se existir
+if [ -f .env ]; then
+  echo "Carregando variáveis de ambiente do arquivo .env"
+  set -o allexport
+  source .env
+  set +o allexport
+fi
+
+# Define uma variável para controlar se deve commitar mudanças ou não.
 commit=true
-# Retrieve the URL of the origin remote repository.
+# Recupera a URL do repositório remoto origin.
 origin=$(git remote get-url origin)
-# Disable commit if the origin repository matches a specific pattern.
+# Desabilita commit se o repositório de origem corresponder a um padrão específico.
 if [[ $origin == *statsig-io/statuspage* ]]; then
   commit=false
 fi
 
-# Function to perform health check for a single URL
+# Função para realizar health check de uma única URL
 check_url() {
   local key=$1
   local url=$2
@@ -18,121 +26,119 @@ check_url() {
   local status_dir=$4
   local result="failed"
 
-  echo "  -> Checking: $key"
+  echo "  -> Checando: $key"
 
-  # Attempt the health check up to 4 times.
+  # Tenta o health check até 4 vezes.
   for i in {1..4}; do
-    # On retries (i > 1), wait 2 seconds.
+    # Em tentativas (i > 1), espera 2 segundos.
     if [ "$i" -gt 1 ]; then
       sleep 2
     fi
 
-    # Perform the curl request with reduced timeouts.
-    # The '|| true' prevents 'set -e' from stopping the script on curl errors like timeouts.
+    # Realiza o curl com timeouts reduzidos.
+    # O '|| true' previne que o 'set -e' pare o script em erros do curl.
     response=$(curl --write-out '%{http_code}' --silent --output /dev/null --connect-timeout 5 --max-time 10 "$url" || true)
 
-    # Check if the response code indicates success.
+    # Verifica se o código de resposta indica sucesso.
     if [[ "$response" -eq 200 || "$response" -eq 202 || "$response" -eq 301 || "$response" -eq 302 || "$response" -eq 307 ]]; then
       result="success"
-      break # Exit retry loop on success.
+      break # Sai do loop de tentativas em caso de sucesso.
     fi
   done
 
-  echo "  <- Finished: $key, Result: $result"
+  echo "  <- Finalizado: $key, Resultado: $result"
   local dateTime
   dateTime=$(date +'%Y-%m-%d %H:%M')
 
-  # Write the final status to a temporary file for the main process to count failures.
+  # Escreve o status final em um arquivo temporário para o processo principal contar falhas.
   echo "$result" > "$status_dir/${key}.status"
 
-  # If committing is enabled, append the result to a log file.
+  # Se commit estiver habilitado, adiciona o resultado ao arquivo de log.
   if [[ $commit_enabled == true ]]; then
     echo "$dateTime, $result" >> "logs/${key}_report.log"
-    # Keep only the last 2000 log entries.
+    # Mantém apenas as últimas 2000 entradas de log.
     echo "$(tail -2000 "logs/${key}_report.log")" > "logs/${key}_report.log"
   else
-    # If committing is disabled, print the result to the console.
+    # Se commit estiver desabilitado, imprime o resultado no console.
     echo "    $dateTime, $result"
   fi
 }
 
-# Initialize arrays to store keys and URLs from the configuration.
+# Inicializa arrays para armazenar as chaves e URLs da configuração.
 KEYSARRAY=()
 URLSARRAY=()
 
-# Specify the configuration file containing URLs to check.
+# Especifica o arquivo de configuração contendo as URLs a serem checadas.
 urlsConfig="./urls.cfg"
-echo "Reading $urlsConfig"
-# Read each line from the configuration file.
+echo "Lendo $urlsConfig"
+# Lê cada linha do arquivo de configuração.
 while read -r line; do
   echo "  $line"
-  # Split each line into key and URL based on the '=' delimiter.
+  # Divide cada linha em chave e URL com base no delimitador '='.
   IFS='=' read -ra TOKENS <<< "$line"
-  # Add the key and URL to their respective arrays.
+  # Adiciona a chave e a URL aos arrays respectivos.
   KEYSARRAY+=(${TOKENS[0]})
   URLSARRAY+=(${TOKENS[1]})
 done < "$urlsConfig"
 
-# Create a temporary directory for status files.
+# Cria um diretório temporário para arquivos de status.
 status_dir=$(mktemp -d)
-# Ensure the temp directory is cleaned up when the script exits.
+# Garante que o diretório temporário seja limpo ao sair do script.
 trap 'rm -rf -- "$status_dir"' EXIT
 
 echo "***********************"
-echo "Starting health checks in parallel for ${#KEYSARRAY[@]} configs:"
+echo "Iniciando health checks em paralelo para ${#KEYSARRAY[@]} configs:"
 echo  "node1-id: $NODE1_INSTANCE_ID"
 echo  "node2-id: $NODE2_INSTANCE_ID"
 echo "***********************"
 
-
-# Create a directory for logs if it doesn't already exist.
+# Cria o diretório de logs se ainda não existir.
 mkdir -p logs
 
-# Launch all checks in the background.
+# Inicia todos os checks em background.
 for (( index=0; index < ${#KEYSARRAY[@]}; index++ )); do
   check_url "${KEYSARRAY[index]}" "${URLSARRAY[index]}" "$commit" "$status_dir" &
 done
 
-# Wait for all background jobs to complete.
+# Aguarda todos os jobs em background terminarem.
 wait
-echo "Waiting for all checks to complete..."
+echo "Aguardando todos os checks terminarem..."
 wait
-echo "All checks completed."
+echo "Todos os checks finalizados."
 
-# Count failures by checking the status files.
-# 'grep -l' lists files containing "failed", 'wc -l' counts them.
+# Conta falhas verificando os arquivos de status.
+# 'grep -l' lista arquivos contendo "failed", 'wc -l' os conta.
 failed_checks=$(grep -l "failed" "$status_dir"/*.status 2>/dev/null | wc -l)
 
-# Create or overwrite a temporary file to indicate the overall health check status.
+# Cria ou sobrescreve um arquivo temporário para indicar o status geral do health check.
 if [[ $failed_checks -gt 0 ]]; then
   echo "failed" > check_status.tmp
-  # Trigger an event to restart instances if any check fails.
-  echo "Some checks failed. Triggering instance restart."
-  # Check if NODE1_INSTANCE_ID is set and trigger a restart.
-  # The NODE1_INSTANCE_ID must be set as an environment variable (e.g., a GitHub Secret).
+  # Dispara evento para reiniciar instâncias se houver falha.
+  echo "Alguns checks falharam. Reiniciando instâncias OCI."
+  # Verifica se NODE1_INSTANCE_ID está definido e dispara o restart.
+  # O NODE1_INSTANCE_ID deve estar definido como variável de ambiente (ex: no .env).
   if [ -n "$NODE1_INSTANCE_ID" ]; then
-    echo "Attempting to SOFTRESET OCI instance NODE1: $NODE1_INSTANCE_ID"
-    # A OCI CLI usará automaticamente as
-    #    credenciais das variáveis de ambiente (passadas pelo workflow).
+    echo "Tentando SOFTRESET na instância OCI NODE1: $NODE1_INSTANCE_ID"
+    # O OCI CLI usará automaticamente as credenciais das variáveis de ambiente.
     oci compute instance action --action SOFTRESET --instance-id "$NODE1_INSTANCE_ID"
     if [ $? -eq 0 ]; then
-      echo "Instance NODE1 restart command issued successfully."
+      echo "Comando de restart da instância NODE1 emitido com sucesso."
     else
-      # Output to stderr to make it more visible in logs
-      echo "ERROR: Failed to issue instance NODE1 restart command." >&2
+      # Saída para stderr para maior visibilidade nos logs
+      echo "ERRO: Falha ao emitir comando de restart para NODE1." >&2
       exit 1 # Falha o build se o comando OCI falhar.
     fi
   else
-    echo "WARNING: NODE1_INSTANCE_ID environment variable not set. Skipping instance restart."
+    echo "AVISO: Variável de ambiente NODE1_INSTANCE_ID não definida. Pulando restart da instância."
   fi
 
   if [ -n "$NODE2_INSTANCE_ID" ]; then
-    echo "Attempting to SOFTRESET OCI instance NODE2: $NODE2_INSTANCE_ID"
+    echo "Tentando SOFTRESET na instância OCI NODE2: $NODE2_INSTANCE_ID"
     oci compute instance action --action SOFTRESET --instance-id "$NODE2_INSTANCE_ID"
     if [ $? -eq 0 ]; then
-      echo "Instance NODE2 restart command issued successfully."
+      echo "Comando de restart da instância NODE2 emitido com sucesso."
     else
-      echo "ERROR: Failed to issue instance NODE2 restart command." >&2
+      echo "ERRO: Falha ao emitir comando de restart para NODE2." >&2
       exit 1
     fi
   fi
@@ -142,26 +148,26 @@ else
   echo "success" > check_status.tmp
 fi
 
-# If committing is enabled, configure Git, commit the log changes, and push to the repository.
+# Se commit estiver habilitado, configura o Git, commita as mudanças de log e faz push para o repositório.
 if [[ $commit == true ]]; then
-  # Configure Git with a generic user name and email.
+  # Configura o Git com nome e email genéricos.
   git config --global user.name 'Unix-User'
   git config --global user.email 'wevertonslima@gmail.com'
 
-  # Pull latest changes from the remote to avoid push rejections.
-  # Using --rebase to maintain a clean, linear history.
-  # Assumes the primary branch is 'main'.
-  echo "Pulling latest changes from origin main..."
+  # Faz pull das últimas mudanças do remoto para evitar rejeições no push.
+  # Usa --rebase para manter histórico linear.
+  # Assume que o branch principal é 'main'.
+  echo "Puxando últimas mudanças do origin main..."
   git pull --rebase origin main
 
-  # Add all changes in the logs directory to the staging area.
+  # Adiciona todas as mudanças no diretório de logs para o staging.
   git add -A --force logs/
-  # Commit and push only if there are changes to be committed.
+  # Comita e faz push apenas se houver mudanças.
   if ! git diff --staged --quiet; then
-    echo "Committing and pushing log updates..."
+    echo "Commitando e enviando atualizações dos logs..."
     git commit -m '[Automated] Update Health Check Logs'
     git push
   else
-    echo "No log changes to commit."
+    echo "Nenhuma alteração de log para commitar."
   fi
 fi
