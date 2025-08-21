@@ -140,34 +140,37 @@ failed_checks=$(grep -l "failed" "$status_dir"/*.status 2>/dev/null | wc -l)
 if [[ $failed_checks -gt 0 ]]; then
   echo "failed" > check_status.tmp
   # Dispara evento para reiniciar instâncias se houver falha.
-  echo "Alguns checks falharam. Reiniciando instâncias OCI."
-  # Verifica se NODE1_INSTANCE_ID está definido e dispara o restart.
-  # O NODE1_INSTANCE_ID deve estar definido como variável de ambiente (ex: no .env).
-  if [ -n "$NODE1_INSTANCE_ID" ]; then
-    echo "Tentando SOFTRESET na instância OCI NODE1: $NODE1_INSTANCE_ID"
-    # O OCI CLI usará automaticamente as credenciais das variáveis de ambiente.
-    oci compute instance action --action SOFTRESET --instance-id "$NODE1_INSTANCE_ID"
-    if [ $? -eq 0 ]; then
-      echo "Comando de restart da instância NODE1 emitido com sucesso."
-    else
-      # Saída para stderr para maior visibilidade nos logs
-      echo "ERRO: Falha ao emitir comando de restart para NODE1." >&2
-      exit 1 # Falha o build se o comando OCI falhar.
-    fi
+  echo "Alguns checks falharam. Tentando reiniciar instâncias OCI."
+
+  # Verifica se o comando 'oci' está disponível e se a autenticação foi configurada.
+  if ! command -v oci &> /dev/null; then
+    echo "ERRO: Comando 'oci' não encontrado no PATH. Pulando restart." >&2
+  elif [ -z "$OCI_CLI_KEY_FILE" ]; then
+    echo "AVISO: Autenticação OCI não foi configurada (OCI_CLI_KEY_FILE não está setado). Pulando restart."
   else
-    echo "AVISO: Variável de ambiente NODE1_INSTANCE_ID não definida. Pulando restart da instância."
+    # Lógica de restart para NODE1
+    if [ -n "$NODE1_INSTANCE_ID" ]; then
+      echo "Tentando SOFTRESET na instância OCI NODE1: $NODE1_INSTANCE_ID"
+      if oci compute instance action --action SOFTRESET --instance-id "$NODE1_INSTANCE_ID"; then
+        echo "Comando de restart da instância NODE1 emitido com sucesso."
+      else
+        echo "ERRO: Falha ao emitir comando de restart para NODE1." >&2
+      fi
+    else
+      echo "AVISO: Variável de ambiente NODE1_INSTANCE_ID não definida. Pulando restart da instância."
+    fi
+
+    # Lógica de restart para NODE2
+    if [ -n "$NODE2_INSTANCE_ID" ]; then
+      echo "Tentando SOFTRESET na instância OCI NODE2: $NODE2_INSTANCE_ID"
+      if oci compute instance action --action SOFTRESET --instance-id "$NODE2_INSTANCE_ID"; then
+        echo "Comando de restart da instância NODE2 emitido com sucesso."
+      else
+        echo "ERRO: Falha ao emitir comando de restart para NODE2." >&2
+      fi
+    fi
   fi
 
-  if [ -n "$NODE2_INSTANCE_ID" ]; then
-    echo "Tentando SOFTRESET na instância OCI NODE2: $NODE2_INSTANCE_ID"
-    oci compute instance action --action SOFTRESET --instance-id "$NODE2_INSTANCE_ID"
-    if [ $? -eq 0 ]; then
-      echo "Comando de restart da instância NODE2 emitido com sucesso."
-    else
-      echo "ERRO: Falha ao emitir comando de restart para NODE2." >&2
-      exit 1
-    fi
-  fi
   # Garante que o job do GitHub Actions seja marcado como "Failed" se houver falhas.
   exit 1
 else
