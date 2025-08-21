@@ -1,50 +1,78 @@
-[![Health Check](../../actions/workflows/health-check.yml/badge.svg)](../../actions/workflows/health-check.yml)
+# Status Page Automatizado com Reinício de Instâncias OCI
 
-# Statsig's Open-Source Status Page
+Este projeto é uma versão modificada e estendida do [statuspage da Statsig](https://github.com/statsig-io/statuspage). Enquanto a base de monitoramento de URLs via GitHub Actions foi mantida, esta versão introduz funcionalidades significativas, principalmente a capacidade de interagir com a Oracle Cloud Infrastructure (OCI).
 
-We tried various Status Pages out there, and built this as a fun little hobby project to make status pages as simple as possible.
+## Funcionalidades Principais
 
-## Demo
+- **Monitoramento Contínuo**: Executa health checks em uma lista de URLs a cada 30 minutos usando GitHub Actions.
+- **Página de Status Estática**: Gera uma página de status simples e limpa, hospedada gratuitamente via GitHub Pages.
+- **Histórico de Uptime**: Mantém um registro dos resultados dos health checks, permitindo visualizar a estabilidade dos serviços ao longo do tempo.
+- **✨ Nova Funcionalidade: Reinício Automático de Instâncias OCI**: Se um ou mais health checks falharem, o sistema tentará reiniciar automaticamente até duas instâncias pré-configuradas na Oracle Cloud Infrastructure (OCI) para tentar restaurar os serviços.
 
-- https://status.statsig.com
+---
 
-## Setup instructions
+## Configuração
 
-1. Fork the [template repository](https://github.com/statsig-io/statuspage/).
-2. Update `urls.cfg` to include your urls.
+Siga os passos abaixo para configurar seu próprio monitor de status.
 
-```cfg
-key1=https://example.com
-key2=https://statsig.com
+### Passo 1: Fork do Repositório
+
+Comece fazendo um "fork" deste repositório para a sua conta do GitHub.
+
+### Passo 2: Configurar as URLs para Monitoramento
+
+Edite o arquivo `urls.cfg` na raiz do projeto. Adicione os serviços que você deseja monitorar, um por linha, no seguinte formato:
+
+```
+NOME_DO_SERVICO=https://seu.servico.com
+OUTRO_SERVICO=https://outro.servico.com
 ```
 
-3. Update `index.html` and change the title.
+### Passo 3: Configurar o Reinício de Instâncias OCI (Opcional)
 
-```html
-<title>My Status Page</title>
-<h1>Services Status</h1>
-```
+Esta é a principal funcionalidade adicionada. Se você não utiliza OCI ou não deseja usar o reinício automático, pode pular esta etapa.
 
-4. Set up GitHub Pages for your repository.
+1.  **Crie um Ambiente no GitHub**:
+    - No seu repositório, vá para `Settings` > `Environments` e clique em `New environment`.
+    - Dê um nome ao ambiente (ex: `github-pages`, que é o padrão configurado no workflow) e clique em `Configure environment`.
 
-![image](https://user-images.githubusercontent.com/74588208/121419015-5f4dc200-c920-11eb-9b14-a275ef5e2a19.png)
+2.  **Adicione os Secrets da OCI**:
+    - Dentro da página de configuração do seu ambiente, na seção `Environment secrets`, adicione os seguintes secrets. Eles são necessários para que o GitHub Actions possa se autenticar na sua conta OCI.
 
-## How does it work?
+      | Secret                | Descrição                                                                                             |
+      | --------------------- | ----------------------------------------------------------------------------------------------------- |
+      | `OCI_CLI_USER`        | O OCID do usuário da API na OCI.                                                                      |
+      | `OCI_FINGERPRINT`     | O fingerprint da chave de API pública carregada na OCI.                                               |
+      | `OCI_CLI_TENANCY`     | O OCID da sua tenancy na OCI.                                                                         |
+      | `OCI_CLI_REGION`      | O identificador da sua região na OCI (ex: `sa-saopaulo-1`).                                           |
+      | `OCI_KEY_FILE`        | O conteúdo completo da sua chave de API privada (o arquivo `.pem`).                                   |
+      | `NODE1_INSTANCE_ID`   | O OCID da primeira instância que você deseja que seja reiniciada em caso de falha.                    |
+      | `NODE2_INSTANCE_ID`   | O OCID da segunda instância (opcional).                                                               |
 
-This project uses GitHub actions to wake up every hour and run a shell script (`health-check.sh`). This script runs `curl` on every url in your config and appends the result of that run to a log file and commits it to the repository. This log is then pulled dynamically from `index.html` and displayed in a easily consumable fashion. You can also run that script from your own infrastructure to update the status page more often.
+3.  **Configure as Permissões na OCI**:
+    - Certifique-se de que o usuário da API na OCI tenha as permissões necessárias para gerenciar instâncias. Você precisará de uma política IAM parecida com esta:
+      ```
+      Allow group NOME_DO_GRUPO_DA_API to manage instance-family in tenancy
+      ```
 
-## What does it not do (yet)?
+### Passo 4: Ativar o GitHub Pages
 
-1. Incident management.
-2. Outage duration tracking.
-3. Updating status root-cause.
+1.  No seu repositório, vá para `Settings` > `Pages`.
+2.  Na seção `Build and deployment`, em `Source`, selecione `GitHub Actions`.
+3.  O workflow já está configurado para construir e implantar a página automaticamente.
 
-## Got new ideas?
+## Como Funciona
 
-Send in a PR - we'd love to integrate your ideas.
+O workflow do GitHub Actions, definido em `.github/workflows/health-check.yml`, é o coração deste projeto.
 
-## In case...
+- **Agendamento**: Ele é executado a cada 30 minutos.
+- **Health Checks**: O script `health-check.sh` é executado, fazendo requisições HTTP para cada URL em `urls.cfg`.
+- **Reinício OCI**: Se qualquer URL falhar, o script tentará executar um `SOFTRESET` nas instâncias OCI definidas nos secrets. A falha ou sucesso desta etapa será registrada como um `AVISO` nos logs.
+- **Commit dos Logs**: O script commita os resultados dos checks no diretório `logs/`, mantendo o histórico.
+- **Deploy**: O workflow do GitHub Pages (se configurado) pega os dados e atualiza a página de status.
 
-You are looking for a developer friendly Feature flags, and A/B experimentation service for your product, check out: https://www.statsig.com
+## Agradecimentos
 
-![Statsig status page](https://user-images.githubusercontent.com/74588208/146078161-778fcb99-4a59-4e39-9fc0-abef18d5ac52.png)
+Este projeto não seria possível sem o trabalho inicial feito pela equipe da Statsig no repositório statsig-io/statuspage.
+
+---
