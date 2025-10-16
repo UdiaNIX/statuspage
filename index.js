@@ -183,6 +183,11 @@ function splitRowsByDate(rows) {
     }
 
     const [dateTimeStr, resultStr] = row.split(",", 2);
+    // Add null check for resultStr to prevent "Cannot read properties of undefined" error
+    if (!dateTimeStr || !resultStr) {
+      continue;
+    }
+
     const dateTime = new Date(Date.parse(dateTimeStr.replace(/-/g, "/") + " GMT"));
     const dateStr = dateTime.toDateString();
 
@@ -233,7 +238,7 @@ function hideTooltip() {
   tooltipTimeout = setTimeout(() => {
     const toolTipDiv = document.getElementById("tooltip");
     toolTipDiv.style.opacity = "0";
-  }, 1000);
+    }, 1000);
 }
 
 async function genAllReports() {
